@@ -81,7 +81,11 @@ func (c *ContainerConfig) Validate() error {
 // setDefaults sets default values for unspecified fields
 func (c *ContainerConfig) setDefaults() {
 	if c.SocketPath == "" {
-		c.SocketPath = GenerateUnixSocketPath(c.KMSConfig)
+		socket, _, err := GenerateUnixSocketPath(c.KMSConfig)
+		if err != nil {
+			panic(err)
+		}
+		c.SocketPath = socket
 	}
 	if c.HealthPort == 0 {
 		c.HealthPort = defaultHealthPort
