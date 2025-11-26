@@ -10,21 +10,20 @@ import (
 func TestContainer(t *testing.T) {
 	tests := []struct {
 		name            string
-		kmsConfig       *configv1.KMSConfig
 		containerConfig *ContainerConfig
 		wantErr         bool
 		validateFunc    func(*testing.T, *corev1.Container)
 	}{
 		{
 			name: "valid AWS KMS with hostNetwork",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012",
-					Region: "us-east-1",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012",
+						Region: "us-east-1",
+					},
+				},
 				Image:          "test-image:latest",
 				UseHostNetwork: true,
 			},
@@ -53,14 +52,14 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name: "valid AWS KMS with credentials secret",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-west-2:987654321098:key/abcdef12-3456-7890-abcd-ef1234567890",
-					Region: "us-west-2",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-west-2:987654321098:key/abcdef12-3456-7890-abcd-ef1234567890",
+						Region: "us-west-2",
+					},
+				},
 				Image:                 "test-image:v2",
 				UseHostNetwork:        false,
 				CredentialsSecretName: "kms-creds",
@@ -93,36 +92,29 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name:      "nil kmsConfig",
-			kmsConfig: nil,
+			name: "nil kmsConfig",
 			containerConfig: &ContainerConfig{
+				KMSConfig:      nil,
 				Image:          "test-image:latest",
 				UseHostNetwork: true,
 			},
 			wantErr: true,
 		},
 		{
-			name: "nil containerConfig",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
-					Region: "us-east-1",
-				},
-			},
+			name:            "nil containerConfig",
 			containerConfig: nil,
 			wantErr:         true,
 		},
 		{
 			name: "missing image",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
-					Region: "us-east-1",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
+						Region: "us-east-1",
+					},
+				},
 				Image:          "",
 				UseHostNetwork: true,
 			},
@@ -130,14 +122,14 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name: "missing credentials secret when not using hostNetwork",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
-					Region: "us-east-1",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
+						Region: "us-east-1",
+					},
+				},
 				Image:                 "test-image:latest",
 				UseHostNetwork:        false,
 				CredentialsSecretName: "",
@@ -146,11 +138,11 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name: "missing AWS config",
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS:  nil,
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS:  nil,
+				},
 				Image:          "test-image:latest",
 				UseHostNetwork: true,
 			},
@@ -160,7 +152,7 @@ func TestContainer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildPluginContainer(tt.kmsConfig, tt.containerConfig)
+			got, err := buildPluginContainer(tt.containerConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("container() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -254,7 +246,6 @@ func TestAddKMSPluginToPodSpec(t *testing.T) {
 	tests := []struct {
 		name                 string
 		podSpec              *corev1.PodSpec
-		kmsConfig            *configv1.KMSConfig
 		containerConfig      *ContainerConfig
 		useHostPathForSocket bool
 		wantErr              bool
@@ -270,14 +261,14 @@ func TestAddKMSPluginToPodSpec(t *testing.T) {
 					},
 				},
 			},
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
-					Region: "us-east-1",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
+						Region: "us-east-1",
+					},
+				},
 				Image:          "kms-plugin:latest",
 				UseHostNetwork: true,
 			},
@@ -312,14 +303,14 @@ func TestAddKMSPluginToPodSpec(t *testing.T) {
 		{
 			name:    "nil podSpec",
 			podSpec: nil,
-			kmsConfig: &configv1.KMSConfig{
-				Type: configv1.AWSKMSProvider,
-				AWS: &configv1.AWSKMSConfig{
-					KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
-					Region: "us-east-1",
-				},
-			},
 			containerConfig: &ContainerConfig{
+				KMSConfig: &configv1.KMSConfig{
+					Type: configv1.AWSKMSProvider,
+					AWS: &configv1.AWSKMSConfig{
+						KeyARN: "arn:aws:kms:us-east-1:123456789012:key/test",
+						Region: "us-east-1",
+					},
+				},
 				Image:          "kms-plugin:latest",
 				UseHostNetwork: true,
 			},
@@ -329,7 +320,7 @@ func TestAddKMSPluginToPodSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := AddKMSPluginToPodSpec(tt.podSpec, tt.kmsConfig, tt.containerConfig, tt.useHostPathForSocket)
+			err := AddKMSPluginToPodSpec(tt.podSpec, tt.containerConfig, tt.useHostPathForSocket)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddKMSPluginToPodSpec() error = %v, wantErr %v", err, tt.wantErr)
 				return

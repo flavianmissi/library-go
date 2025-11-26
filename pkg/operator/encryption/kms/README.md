@@ -97,22 +97,20 @@ import (
     "github.com/openshift/library-go/pkg/operator/encryption/kmsplugin"
 )
 
-kmsConfig := &configv1.KMSConfig{
-    Type: configv1.AWSKMSProvider,
-    AWS: &configv1.AWSKMSConfig{
-        KeyARN: "arn:aws:kms:us-east-1:123456789012:key/...",
-        Region: "us-east-1",
-    },
-}
-
 containerConfig := &kmsplugin.ContainerConfig{
+    KMSConfig: &configv1.KMSConfig{
+        Type: configv1.AWSKMSProvider,
+        AWS: &configv1.AWSKMSConfig{
+            KeyARN: "arn:aws:kms:us-east-1:123456789012:key/...",
+            Region: "us-east-1",
+        },
+    },
     Image:          "registry.k8s.io/kms-plugin-aws:v1.0",
     UseHostNetwork: true, // Uses IMDS for credentials
 }
 
 err := kmsplugin.AddKMSPluginToPodSpec(
     &pod.Spec,
-    kmsConfig,
     containerConfig,
     true, // useHostPathForSocket (static pod requirement)
 )
@@ -121,15 +119,14 @@ err := kmsplugin.AddKMSPluginToPodSpec(
 ### Example: openshift-apiserver (Deployment without hostNetwork)
 
 ```go
-kmsConfig := &configv1.KMSConfig{
-    Type: configv1.AWSKMSProvider,
-    AWS: &configv1.AWSKMSConfig{
-        KeyARN: "arn:aws:kms:us-west-2:987654321098:key/...",
-        Region: "us-west-2",
-    },
-}
-
 containerConfig := &kmsplugin.ContainerConfig{
+    KMSConfig: &configv1.KMSConfig{
+        Type: configv1.AWSKMSProvider,
+        AWS: &configv1.AWSKMSConfig{
+            KeyARN: "arn:aws:kms:us-west-2:987654321098:key/...",
+            Region: "us-west-2",
+        },
+    },
     Image:                 "registry.k8s.io/kms-plugin-aws:v1.0",
     UseHostNetwork:        false,
     CredentialsSecretName: "kms-credentials", // Created by CCO
@@ -137,7 +134,6 @@ containerConfig := &kmsplugin.ContainerConfig{
 
 err := kmsplugin.AddKMSPluginToPodSpec(
     &deployment.Spec.Template.Spec,
-    kmsConfig,
     containerConfig,
     false, // useHostPathForSocket (emptyDir for deployments)
 )

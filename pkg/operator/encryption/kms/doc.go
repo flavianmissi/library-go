@@ -16,37 +16,34 @@
 //
 // For a static pod (e.g., kube-apiserver with hostNetwork):
 //
-//	kmsConfig := &configv1.KMSConfig{
-//		Type: configv1.AWSKMSProvider,
-//		AWS: &configv1.AWSKMSConfig{
-//			KeyARN: "arn:aws:kms:us-east-1:123456789012:key/...",
-//			Region: "us-east-1",
-//		},
-//	}
-//
 //	containerConfig := &kmsplugin.ContainerConfig{
+//		KMSConfig: &configv1.KMSConfig{
+//			Type: configv1.AWSKMSProvider,
+//			AWS: &configv1.AWSKMSConfig{
+//				KeyARN: "arn:aws:kms:us-east-1:123456789012:key/...",
+//				Region: "us-east-1",
+//			},
+//		},
 //		Image:          "registry.k8s.io/kms-plugin-aws:v1.0",
 //		UseHostNetwork: true, // Static pods use hostNetwork for IMDS access
 //	}
 //
 //	err := kmsplugin.AddKMSPluginToPodSpec(
 //		podSpec,
-//		kmsConfig,
 //		containerConfig,
 //		true, // useHostPathForSocket
 //	)
 //
 // For a deployment (e.g., openshift-apiserver without hostNetwork):
 //
-//	kmsConfig := &configv1.KMSConfig{
-//		Type: configv1.AWSKMSProvider,
-//		AWS: &configv1.AWSKMSConfig{
-//			KeyARN: "arn:aws:kms:us-west-2:987654321098:key/...",
-//			Region: "us-west-2",
-//		},
-//	}
-//
 //	containerConfig := &kmsplugin.ContainerConfig{
+//		KMSConfig: &configv1.KMSConfig{
+//			Type: configv1.AWSKMSProvider,
+//			AWS: &configv1.AWSKMSConfig{
+//				KeyARN: "arn:aws:kms:us-west-2:987654321098:key/...",
+//				Region: "us-west-2",
+//			},
+//		},
 //		Image:                 "registry.k8s.io/kms-plugin-aws:v1.0",
 //		UseHostNetwork:        false,
 //		CredentialsSecretName: "kms-credentials", // Created by Cloud Credential Operator
@@ -54,7 +51,6 @@
 //
 //	err := kmsplugin.AddKMSPluginToPodSpec(
 //		&deployment.Spec.Template.Spec,
-//		kmsConfig,
 //		containerConfig,
 //		false, // useHostPathForSocket - use emptyDir for deployments
 //	)

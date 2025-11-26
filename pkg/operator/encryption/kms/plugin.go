@@ -100,12 +100,20 @@ func (c *ContainerConfig) setDefaults() {
 
 // buildPluginContainer creates a corev1.Container spec for the KMS plugin sidecar
 // based on the KMS configuration from openshift/api and container-specific config
-func buildPluginContainer(kmsConfig *configv1.KMSConfig, containerConfig *ContainerConfig) (*corev1.Container, error) {
-	if kmsConfig == nil {
-		return nil, fmt.Errorf("kmsConfig cannot be nil")
-	}
+func buildPluginContainer(containerConfig *ContainerConfig) (*corev1.Container, error) {
 	if containerConfig == nil {
 		return nil, fmt.Errorf("containerConfig cannot be nil")
+	}
+	if containerConfig.KMSConfig == nil {
+		return nil, fmt.Errorf("kmsConfig cannot be nil")
+	}
+
+	// Currently only AWS is supported
+	if containerConfig.KMSConfig.Type != configv1.AWSKMSProvider {
+		return nil, fmt.Errorf("unsupported KMS provider type: %s (only %s is supported)", containerConfig.KMSConfig.Type, configv1.AWSKMSProvider)
+	}
+	if containerConfig.KMSConfig.AWS == nil {
+		return nil, fmt.Errorf("AWS KMS config is required when type is AWS")
 	}
 
 	// Validate inputs
@@ -113,16 +121,8 @@ func buildPluginContainer(kmsConfig *configv1.KMSConfig, containerConfig *Contai
 		return nil, fmt.Errorf("invalid container config: %w", err)
 	}
 
-	// Set defaults
+	// Set defaults (must be called after KMS config validation)
 	containerConfig.setDefaults()
-
-	// Currently only AWS is supported
-	if kmsConfig.Type != configv1.AWSKMSProvider {
-		return nil, fmt.Errorf("unsupported KMS provider type: %s (only %s is supported)", kmsConfig.Type, configv1.AWSKMSProvider)
-	}
-	if kmsConfig.AWS == nil {
-		return nil, fmt.Errorf("AWS KMS config is required when type is AWS")
-	}
 
 	container := &corev1.Container{
 		Name:  KMSContainerName,
@@ -131,8 +131,8 @@ func buildPluginContainer(kmsConfig *configv1.KMSConfig, containerConfig *Contai
 			"/aws-encryption-provider",
 		},
 		Args: []string{
-			fmt.Sprintf("--key=%s", kmsConfig.AWS.KeyARN),
-			fmt.Sprintf("--region=%s", kmsConfig.AWS.Region),
+			fmt.Sprintf("--key=%s", containerConfig.KMSConfig.AWS.KeyARN),
+			fmt.Sprintf("--region=%s", containerConfig.KMSConfig.AWS.Region),
 			fmt.Sprintf("--listen=%s", containerConfig.SocketPath),
 		},
 		Ports: []corev1.ContainerPort{
@@ -251,7 +251,6 @@ func buildPluginVolumes(useHostNetwork bool, credentialsSecretName string, hostP
 // This is a convenience function that combines buildPluginContainer() and buildPluginVolumes()
 func AddKMSPluginToPodSpec(
 	podSpec *corev1.PodSpec,
-	kmsConfig *configv1.KMSConfig,
 	containerConfig *ContainerConfig,
 	useHostPathForSocket bool,
 ) error {
@@ -260,7 +259,7 @@ func AddKMSPluginToPodSpec(
 	}
 
 	// Create the KMS plugin container
-	kmsContainer, err := buildPluginContainer(kmsConfig, containerConfig)
+	kmsContainer, err := buildPluginContainer(containerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create KMS plugin container: %w", err)
 	}
